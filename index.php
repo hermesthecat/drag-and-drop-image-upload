@@ -112,6 +112,10 @@
         <h1>Drag and Drop Image Upload</h1>
         <div id="drop-area" class="drop-area">
             <p>Drag & Drop your images here or <span id="browse">Browse</span></p>
+            <p style="font-size: 12px; color: #888; margin-top: 10px;">
+                Kabul edilen formatlar: JPG, PNG, GIF, WebP<br>
+                Maksimum dosya boyutu: 5MB
+            </p>
             <input type="file" id="fileElem" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" style="display:none">
         </div>
 
@@ -164,6 +168,14 @@
             handleFiles(fileElem.files);
         });
 
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
         function handleFiles(files) {
             if (files.length > 0) {
                 const file = files[0];
@@ -177,8 +189,11 @@
                 
                 // Frontend dosya boyutu kontrolü (5MB)
                 const maxSize = 5 * 1024 * 1024; // 5MB
+                const fileSize = formatFileSize(file.size);
+                const maxSizeFormatted = formatFileSize(maxSize);
+                
                 if (file.size > maxSize) {
-                    alert('Dosya boyutu 5MB\'dan küçük olmalıdır!');
+                    alert(`Dosya boyutu çok büyük!\nDosya boyutu: ${fileSize}\nMaksimum izin verilen: ${maxSizeFormatted}`);
                     return;
                 }
                 
@@ -186,6 +201,24 @@
                 previewImage.src = URL.createObjectURL(selectedFile);
                 previewContainer.style.display = 'block';
                 dropArea.style.display = 'none';
+                
+                // Dosya bilgilerini göster
+                const fileInfo = document.createElement('div');
+                fileInfo.id = 'file-info';
+                fileInfo.style.cssText = 'margin-top: 10px; color: #666; font-size: 14px;';
+                fileInfo.innerHTML = `
+                    <strong>Dosya:</strong> ${file.name}<br>
+                    <strong>Boyut:</strong> ${fileSize}<br>
+                    <strong>Tip:</strong> ${file.type}
+                `;
+                
+                // Önceki dosya bilgisini temizle
+                const existingInfo = document.getElementById('file-info');
+                if (existingInfo) {
+                    existingInfo.remove();
+                }
+                
+                previewContainer.appendChild(fileInfo);
             }
         }
 
@@ -194,6 +227,12 @@
             previewContainer.style.display = 'none';
             dropArea.style.display = 'block';
             previewImage.src = '';
+            
+            // Dosya bilgilerini temizle
+            const fileInfo = document.getElementById('file-info');
+            if (fileInfo) {
+                fileInfo.remove();
+            }
         });
 
         uploadBtn.addEventListener('click', () => {
@@ -226,6 +265,12 @@
                         previewImage.src = '';
                         selectedFile = null;
                         dropArea.style.display = 'block';
+                        
+                        // Dosya bilgilerini temizle
+                        const fileInfo = document.getElementById('file-info');
+                        if (fileInfo) {
+                            fileInfo.remove();
+                        }
                         
                         alert('Resim başarıyla yüklendi!');
                     } else {

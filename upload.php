@@ -23,8 +23,15 @@ if ($_FILES['image']['error'] == 0) {
     
     // Güvenlik: Dosya boyutu kontrolü (5MB max)
     $max_size = 5 * 1024 * 1024; // 5MB
-    if ($_FILES['image']['size'] > $max_size) {
-        echo json_encode(['status' => 'error', 'message' => 'File size must be less than 5MB']);
+    $file_size = $_FILES['image']['size'];
+    
+    if ($file_size > $max_size) {
+        $file_size_mb = round($file_size / (1024 * 1024), 2);
+        $max_size_mb = round($max_size / (1024 * 1024), 2);
+        echo json_encode([
+            'status' => 'error', 
+            'message' => "Dosya boyutu çok büyük! Dosya: {$file_size_mb}MB, Maksimum: {$max_size_mb}MB"
+        ]);
         exit;
     }
     
