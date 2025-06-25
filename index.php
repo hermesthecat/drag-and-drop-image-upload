@@ -112,7 +112,7 @@
         <h1>Drag and Drop Image Upload</h1>
         <div id="drop-area" class="drop-area">
             <p>Drag & Drop your images here or <span id="browse">Browse</span></p>
-            <input type="file" id="fileElem" accept="image/*" style="display:none">
+            <input type="file" id="fileElem" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" style="display:none">
         </div>
 
         <!-- Preview and confirmation buttons -->
@@ -166,7 +166,23 @@
 
         function handleFiles(files) {
             if (files.length > 0) {
-                selectedFile = files[0];
+                const file = files[0];
+                
+                // Frontend dosya tipi kontrolü
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                if (!allowedTypes.includes(file.type)) {
+                    alert('Sadece JPG, PNG, GIF ve WebP dosyaları kabul edilir!');
+                    return;
+                }
+                
+                // Frontend dosya boyutu kontrolü (5MB)
+                const maxSize = 5 * 1024 * 1024; // 5MB
+                if (file.size > maxSize) {
+                    alert('Dosya boyutu 5MB\'dan küçük olmalıdır!');
+                    return;
+                }
+                
+                selectedFile = file;
                 previewImage.src = URL.createObjectURL(selectedFile);
                 previewContainer.style.display = 'block';
                 dropArea.style.display = 'none';
@@ -189,6 +205,10 @@
         });
 
         function uploadImage(formData) {
+            // Upload sırasında buton deaktif et
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Yükleniyor...';
+            
             fetch('upload.php', {
                     method: 'POST',
                     body: formData
@@ -198,7 +218,7 @@
                     if (data.status === 'success') {
                         // Append the uploaded image to the gallery
                         const img = document.createElement('img');
-                        img.src = 'uploads/' + data.file; // Assuming the image is saved in 'uploads' directory
+                        img.src = 'uploads/' + data.file;
                         gallery.appendChild(img);
 
                         // Reset the preview and form
@@ -206,12 +226,20 @@
                         previewImage.src = '';
                         selectedFile = null;
                         dropArea.style.display = 'block';
+                        
+                        alert('Resim başarıyla yüklendi!');
                     } else {
-                        console.error(data.message); // Log any error message from the server
+                        alert('Hata: ' + data.message);
                     }
                 })
                 .catch(error => {
                     console.error('Error uploading image:', error);
+                    alert('Yükleme sırasında bir hata oluştu!');
+                })
+                .finally(() => {
+                    // Upload butonunu tekrar aktif et
+                    uploadBtn.disabled = false;
+                    uploadBtn.textContent = 'Upload';
                 });
         }
     </script>
