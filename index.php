@@ -78,6 +78,44 @@
             cursor: pointer;
         }
 
+        .progress-container {
+            display: none;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            width: 0%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .upload-speed {
+            font-size: 12px;
+            color: #888;
+            text-align: center;
+            margin-top: 2px;
+        }
+
         .btn-upload {
             background-color: #28a745;
             color: #fff;
@@ -122,7 +160,17 @@
         <!-- Preview and confirmation buttons -->
         <div id="preview-container" class="preview-container">
             <img id="preview-image" alt="Image Preview">
-            <div>
+
+            <!-- Progress Bar -->
+            <div id="progress-container" class="progress-container">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div id="progress-text" class="progress-text">Yükleniyor... 0%</div>
+                <div id="upload-speed" class="upload-speed"></div>
+            </div>
+
+            <div id="button-container">
                 <button class="btn-upload" id="upload-btn">Upload</button>
                 <button class="btn-cancel" id="cancel-btn">Cancel</button>
             </div>
@@ -142,6 +190,10 @@
         const uploadBtn = document.getElementById('upload-btn');
         const cancelBtn = document.getElementById('cancel-btn');
         const gallery = document.getElementById('gallery');
+        const progressContainer = document.getElementById('progress-container');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const uploadSpeed = document.getElementById('upload-speed');
         let selectedFile;
 
         // Highlight the drop area when dragging over
@@ -224,16 +276,7 @@
         }
 
         cancelBtn.addEventListener('click', () => {
-            selectedFile = null;
-            previewContainer.style.display = 'none';
-            dropArea.style.display = 'block';
-            previewImage.src = '';
-
-            // Dosya bilgilerini temizle
-            const fileInfo = document.getElementById('file-info');
-            if (fileInfo) {
-                fileInfo.remove();
-            }
+            resetUploadForm();
         });
 
         uploadBtn.addEventListener('click', () => {
@@ -245,49 +288,121 @@
         });
 
         function uploadImage(formData) {
-            // Upload sırasında buton deaktif et
-            uploadBtn.disabled = true;
-            uploadBtn.textContent = 'Yükleniyor...';
+            // Upload sırasında butonları gizle ve progress bar göster
+            document.getElementById('button-container').style.display = 'none';
+            progressContainer.style.display = 'block';
 
-            fetch('upload.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Append the uploaded image to the gallery
-                        const img = document.createElement('img');
-                        img.src = 'uploads/' + data.file;
-                        img.title = `Orijinal: ${data.original_name}\nDosya: ${data.file}\nBoyut: ${data.file_size}`;
-                        gallery.appendChild(img);
+            const xhr = new XMLHttpRequest();
+            const startTime = Date.now();
 
-                        // Reset the preview and form
-                        previewContainer.style.display = 'none';
-                        previewImage.src = '';
-                        selectedFile = null;
-                        dropArea.style.display = 'block';
+            // Progress tracking
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    const elapsed = (Date.now() - startTime) / 1000; // saniye
+                    const speed = e.loaded / elapsed; // bytes per second
+                    const remaining = (e.total - e.loaded) / speed; // saniye
 
-                        // Dosya bilgilerini temizle
-                        const fileInfo = document.getElementById('file-info');
-                        if (fileInfo) {
-                            fileInfo.remove();
+                    // Progress bar güncelle
+                    progressFill.style.width = percentComplete + '%';
+                    progressText.textContent = `Yükleniyor... ${Math.round(percentComplete)}%`;
+
+                    // Upload hızı ve kalan süre hesapla
+                    const speedText = formatSpeed(speed);
+                    const remainingText = remaining > 0 ? formatTime(remaining) : '';
+                    uploadSpeed.textContent = `Hız: ${speedText}${remainingText ? ` - Kalan: ${remainingText}` : ''}`;
+                }
+            });
+
+            // Upload tamamlandığında
+            xhr.addEventListener('load', function() {
+                if (xhr.status === 200) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+
+                        if (data.status === 'success') {
+                            // Progress bar'ı 100% yap
+                            progressFill.style.width = '100%';
+                            progressText.textContent = 'Yükleme tamamlandı! 100%';
+                            uploadSpeed.textContent = 'Tamamlandı!';
+
+                            // Append the uploaded image to the gallery
+                            const img = document.createElement('img');
+                            img.src = 'uploads/' + data.file;
+                            img.title = `Orijinal: ${data.original_name}\nDosya: ${data.file}\nBoyut: ${data.file_size}`;
+                            gallery.appendChild(img);
+
+                            // 1 saniye sonra reset et
+                            setTimeout(() => {
+                                resetUploadForm();
+                                alert(`Resim başarıyla yüklendi!\n\nOrijinal dosya: ${data.original_name}\nYeni dosya adı: ${data.file}\nDosya boyutu: ${data.file_size}`);
+                            }, 1000);
+                        } else {
+                            resetUploadForm();
+                            alert('Hata: ' + data.message);
                         }
-
-                        alert(`Resim başarıyla yüklendi!\n\nOrijinal dosya: ${data.original_name}\nYeni dosya adı: ${data.file}\nDosya boyutu: ${data.file_size}`);
-                    } else {
-                        alert('Hata: ' + data.message);
+                    } catch (error) {
+                        resetUploadForm();
+                        alert('Sunucu yanıtı işlenirken hata oluştu!');
                     }
-                })
-                .catch(error => {
-                    console.error('Error uploading image:', error);
+                } else {
+                    resetUploadForm();
                     alert('Yükleme sırasında bir hata oluştu!');
-                })
-                .finally(() => {
-                    // Upload butonunu tekrar aktif et
-                    uploadBtn.disabled = false;
-                    uploadBtn.textContent = 'Upload';
-                });
+                }
+            });
+
+            // Hata durumunda
+            xhr.addEventListener('error', function() {
+                resetUploadForm();
+                alert('Yükleme sırasında bir hata oluştu!');
+            });
+
+            // Upload isteğini gönder
+            xhr.open('POST', 'upload.php');
+            xhr.send(formData);
+        }
+
+        function resetUploadForm() {
+            // Reset the preview and form
+            previewContainer.style.display = 'none';
+            previewImage.src = '';
+            selectedFile = null;
+            dropArea.style.display = 'block';
+            progressContainer.style.display = 'none';
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Yükleniyor... 0%';
+            uploadSpeed.textContent = '';
+
+            // Butonları tekrar göster ve aktif et
+            document.getElementById('button-container').style.display = 'block';
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Upload';
+
+            // Dosya bilgilerini temizle
+            const fileInfo = document.getElementById('file-info');
+            if (fileInfo) {
+                fileInfo.remove();
+            }
+        }
+
+        function formatSpeed(bytesPerSecond) {
+            if (bytesPerSecond < 1024) {
+                return Math.round(bytesPerSecond) + ' B/s';
+            } else if (bytesPerSecond < 1024 * 1024) {
+                return Math.round(bytesPerSecond / 1024) + ' KB/s';
+            } else {
+                return (bytesPerSecond / (1024 * 1024)).toFixed(1) + ' MB/s';
+            }
+        }
+
+        function formatTime(seconds) {
+            if (seconds < 60) {
+                return Math.round(seconds) + 's';
+            } else {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.round(seconds % 60);
+                return `${minutes}m ${remainingSeconds}s`;
+            }
         }
 
         // Sayfa yüklendiğinde mevcut resimleri yükle
