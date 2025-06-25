@@ -130,6 +130,7 @@
     </div>
 
     <!-- Gallery to display uploaded images -->
+    <h2 style="text-align: center; color: #333; margin-top: 40px;">Yüklenen Resimler</h2>
     <div class="gallery" id="gallery"></div>
 
     <!-- Script JS -->
@@ -179,29 +180,29 @@
         function handleFiles(files) {
             if (files.length > 0) {
                 const file = files[0];
-                
+
                 // Frontend dosya tipi kontrolü
                 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
                 if (!allowedTypes.includes(file.type)) {
                     alert('Sadece JPG, PNG, GIF ve WebP dosyaları kabul edilir!');
                     return;
                 }
-                
+
                 // Frontend dosya boyutu kontrolü (5MB)
                 const maxSize = 5 * 1024 * 1024; // 5MB
                 const fileSize = formatFileSize(file.size);
                 const maxSizeFormatted = formatFileSize(maxSize);
-                
+
                 if (file.size > maxSize) {
                     alert(`Dosya boyutu çok büyük!\nDosya boyutu: ${fileSize}\nMaksimum izin verilen: ${maxSizeFormatted}`);
                     return;
                 }
-                
+
                 selectedFile = file;
                 previewImage.src = URL.createObjectURL(selectedFile);
                 previewContainer.style.display = 'block';
                 dropArea.style.display = 'none';
-                
+
                 // Dosya bilgilerini göster
                 const fileInfo = document.createElement('div');
                 fileInfo.id = 'file-info';
@@ -211,13 +212,13 @@
                     <strong>Boyut:</strong> ${fileSize}<br>
                     <strong>Tip:</strong> ${file.type}
                 `;
-                
+
                 // Önceki dosya bilgisini temizle
                 const existingInfo = document.getElementById('file-info');
                 if (existingInfo) {
                     existingInfo.remove();
                 }
-                
+
                 previewContainer.appendChild(fileInfo);
             }
         }
@@ -227,7 +228,7 @@
             previewContainer.style.display = 'none';
             dropArea.style.display = 'block';
             previewImage.src = '';
-            
+
             // Dosya bilgilerini temizle
             const fileInfo = document.getElementById('file-info');
             if (fileInfo) {
@@ -247,7 +248,7 @@
             // Upload sırasında buton deaktif et
             uploadBtn.disabled = true;
             uploadBtn.textContent = 'Yükleniyor...';
-            
+
             fetch('upload.php', {
                     method: 'POST',
                     body: formData
@@ -258,6 +259,7 @@
                         // Append the uploaded image to the gallery
                         const img = document.createElement('img');
                         img.src = 'uploads/' + data.file;
+                        img.title = `Orijinal: ${data.original_name}\nDosya: ${data.file}\nBoyut: ${data.file_size}`;
                         gallery.appendChild(img);
 
                         // Reset the preview and form
@@ -265,14 +267,14 @@
                         previewImage.src = '';
                         selectedFile = null;
                         dropArea.style.display = 'block';
-                        
+
                         // Dosya bilgilerini temizle
                         const fileInfo = document.getElementById('file-info');
                         if (fileInfo) {
                             fileInfo.remove();
                         }
-                        
-                        alert('Resim başarıyla yüklendi!');
+
+                        alert(`Resim başarıyla yüklendi!\n\nOrijinal dosya: ${data.original_name}\nYeni dosya adı: ${data.file}\nDosya boyutu: ${data.file_size}`);
                     } else {
                         alert('Hata: ' + data.message);
                     }
@@ -287,6 +289,28 @@
                     uploadBtn.textContent = 'Upload';
                 });
         }
+
+        // Sayfa yüklendiğinde mevcut resimleri yükle
+        function loadExistingImages() {
+            fetch('load_images.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        data.images.forEach(imageData => {
+                            const img = document.createElement('img');
+                            img.src = 'uploads/' + imageData.filename;
+                            img.title = `Dosya: ${imageData.filename}\nBoyut: ${imageData.size}\nTarih: ${imageData.date}`;
+                            gallery.appendChild(img);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Mevcut resimler yüklenirken hata:', error);
+                });
+        }
+
+        // Sayfa yüklendiğinde mevcut resimleri yükle
+        document.addEventListener('DOMContentLoaded', loadExistingImages);
     </script>
 </body>
 
